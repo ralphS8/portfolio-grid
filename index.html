@@ -234,9 +234,10 @@ function buildCards(){
   });
 }
 
-/* projects.txt can occasionally fail to load (for example while Cargo is switching pages).
-   So: retry a few times, keep a copy of the last good list in this browser to fall back on,
-   and try again whenever the page comes back into view. Visitors never see an error. */
+/* To show the points instantly, the page uses the copy of projects.txt saved in this browser
+   on the last visit, then fetches the latest file in the background and only redraws if it changed.
+   If the file fails to load it retries, and tries again whenever the page comes back into view.
+   Visitors never see an error. */
 const CACHE_KEY = 'portfolio-grid:projects';
 let projectsText = null, projectsFresh = false, projectsLoading = false;
 const readCache = () => { try { return localStorage.getItem(CACHE_KEY); } catch (e) { return null; } };
@@ -265,7 +266,8 @@ function useProjects(txt){
 async function loadProjects(){
   if (projectsFresh || projectsLoading) return;
   projectsLoading = true;
-  for (const delay of [0, 400, 1200, 2500, 5000]){
+  if (!projectsText){ const saved = readCache(); if (saved) useProjects(saved); }   // instant, from the last visit
+  for (const delay of [0, 250, 800, 2000, 4000]){
     if (delay) await wait(delay);
     try {
       const txt = await fetchProjects();
@@ -274,7 +276,6 @@ async function loadProjects(){
       return;
     } catch (e) {
       console.warn('projects.txt did not load, retrying:', e.message || e);
-      if (!projectsText){ const saved = readCache(); if (saved) useProjects(saved); }
     }
   }
   projectsLoading = false;
