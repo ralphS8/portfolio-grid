@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hidden index</title>
+<link rel="preload" href="fonts/inter-regular.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+/* Inter (SIL Open Font License), hosted alongside this page */
+@font-face{
+  font-family:"Inter";
+  src:url("fonts/inter-regular.woff2") format("woff2");
+  font-weight:400;font-style:normal;font-display:swap;
+}
+:root{
+  --paper:#ffffff; --ink:#1d1d1d; --muted:#8c8c8c;
+  --font:"Inter","Helvetica Neue",Helvetica,Arial,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --paper:#161616; --ink:#ebebeb; --muted:#7a7a7a; }
+}
+:root[data-theme="dark"]{ --paper:#161616; --ink:#ebebeb; --muted:#7a7a7a; }
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px);background:var(--paper)}
+body{
+  height:100%;margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--font);
+  -webkit-font-smoothing:antialiased;overflow:hidden;
+}
+.page{display:grid;grid-template-columns:340px 1fr;height:100%}
+.page.embed{grid-template-columns:1fr;grid-template-rows:1fr}
+.page.embed .side{display:none}
+
+/* Mock of the existing Cargo sidebar, for context only */
+.side{display:flex;flex-direction:column;padding:30px 30px 30px 30px;font-size:15px;line-height:1.38;letter-spacing:-.005em}
+.wm{display:flex;flex-direction:column;font-weight:400;font-size:62px;line-height:.86;letter-spacing:-.045em}
+.wm .l2{padding-left:.3em}
+.bio{max-width:19em;margin:16px 0 0}
+.side .nav{margin-top:auto;display:flex;flex-direction:column}
+.side .contact{margin-top:auto;display:flex;flex-direction:column}
+
+.field{position:relative;overflow:hidden;cursor:crosshair;touch-action:manipulation;min-height:0}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+.card{
+  position:absolute;display:block;transform:translate(-50%,-50%);
+  pointer-events:none;color:inherit;text-decoration:none;outline:none;
+  --ph:0;--pv:0;--pc:0;--bw:1px;
+}
+.card.live{pointer-events:auto;cursor:pointer}
+.card.off .clip{visibility:hidden}
+.clip{
+  position:absolute;inset:0;overflow:hidden;background:var(--ink);
+  clip-path:inset(calc((1 - var(--pv)) * (50% - .5px)) calc((1 - var(--ph)) * (50% - .5px)));
+}
+.clip img{width:100%;height:100%;object-fit:cover;display:block;opacity:calc(var(--pv) * 1.3)}
+.c{position:absolute;width:9px;height:9px;border:0 solid var(--ink);opacity:var(--ph)}
+.c.tl{left:calc((1 - var(--ph)) * (50% - .5px) - 7px);top:calc((1 - var(--pv)) * (50% - .5px) - 7px);border-left-width:var(--bw);border-top-width:var(--bw)}
+.c.tr{right:calc((1 - var(--ph)) * (50% - .5px) - 7px);top:calc((1 - var(--pv)) * (50% - .5px) - 7px);border-right-width:var(--bw);border-top-width:var(--bw)}
+.c.bl{left:calc((1 - var(--ph)) * (50% - .5px) - 7px);bottom:calc((1 - var(--pv)) * (50% - .5px) - 7px);border-left-width:var(--bw);border-bottom-width:var(--bw)}
+.c.bb{right:calc((1 - var(--ph)) * (50% - .5px) - 7px);bottom:calc((1 - var(--pv)) * (50% - .5px) - 7px);border-right-width:var(--bw);border-bottom-width:var(--bw)}
+.card:focus-visible{--bw:2px}
+.cap{
+  position:absolute;left:-1px;top:calc(100% + 13px);
+  font-size:12.5px;line-height:1.32;white-space:nowrap;letter-spacing:-.003em;
+  opacity:var(--pc);background:var(--paper);padding:1px 6px 2px 1px;
+  transform:translateY(calc((1 - var(--pc)) * 3px));
+}
+.card.above .cap{top:auto;bottom:calc(100% + 13px)}
+.idx{color:var(--muted);font-variant-numeric:tabular-nums;margin-right:.45em}
+.tag{display:block;color:var(--muted)}
+
+.status{
+  position:absolute;right:16px;bottom:14px;margin:0;font-size:12.5px;color:var(--muted);
+  pointer-events:none;background:var(--paper);padding:1px 0 1px 6px;
+}
+
+@media (max-width:760px){
+  .page{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .side{padding:20px 20px 4px}
+  .wm{font-size:40px}
+  .bio{font-size:14px;margin-top:10px}
+  .side .nav,.side .contact{display:none}
+}
+</style>
+</head>
+<body>
+<div class="page" id="page">
+  <aside class="side">
+    <div class="wm"><span>ralph</span><span class="l2">Sagrott</span></div>
+    <p class="bio">a london-based designer shaping ideas through thoughtful, interdisciplinary design.</p>
+    <div class="nav"><span>Work</span><span>About</span><span>Experiments</span></div>
+    <div class="contact"><span>Email</span><span>Instagram</span><span>LinkedIn</span></div>
+  </aside>
+  <main class="field" id="field" aria-label="Project index. Square points in the grid open projects.">
+    <canvas id="grid" aria-hidden="true"></canvas>
+    <div id="cards"></div>
+    <p class="status" id="status" aria-live="polite"></p>
+  </main>
+</div>
+
+<script>
+/* ---------- Content ----------
+   The projects live in projects.txt, next to this file. Edit that, not this.
+   Each project's images live in images/<project-name>/01.jpg, 02.jpg, 03.jpg ...
+   The page finds and measures the images itself. */
+let PROJECTS = [];
+
+/* ---------- Setup ---------- */
+const params = new URLSearchParams(location.search);
+const page = document.getElementById('page');
+// The sidebar is a stand-in for the Cargo sidebar, for previewing only. Add ?sidebar to the URL to see it.
+const SHOW_SIDEBAR = false || params.has('sidebar');
+if (!SHOW_SIDEBAR || params.has('embed')) page.classList.add('embed');
+if (params.get('theme') === 'dark') document.documentElement.dataset.theme = 'dark';
+if (params.get('theme') === 'auto') delete document.documentElement.dataset.theme;
+// A fresh layout on every load; add ?seed=123 to the URL to pin one layout
+const SEED = params.has('seed') ? parseInt(params.get('seed'), 10) : Math.floor(Math.random() * 1e9);
+
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const coarse = matchMedia('(pointer: coarse)').matches;
+const field = document.getElementById('field');
+const canvas = document.getElementById('grid');
+const ctx = canvas.getContext('2d');
+const cardsEl = document.getElementById('cards');
+const statusEl = document.getElementById('status');
+
+const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
+const easeOut = t => 1 - Math.pow(1 - t, 3);
+const easeInOut = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
+const pad2 = n => String(n).padStart(2, '0');
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+let W=0,H=0,dpr=1,sp=26,cols=0,rows=0,ox=0,oy=0,S=180;
+let nodes = [];            // placed projects
+let nodeGrid = new Map();  // cell key -> node
+let ink='#1d1d1d', muted='#8c8c8c';
+let dotSprite = null;
+const FONT = getComputedStyle(document.documentElement).getPropertyValue('--font').trim();
+
+/* ---------- Loading projects.txt ---------- */
+const slugify = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+function parseProjects(txt){
+  return txt.split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line && !line.startsWith('#'))
+    .map(line => {
+      const [title = '', year = '', tag = '', href = ''] = line.split('|').map(s => s.trim());
+      return { title, year, tag, href, slug: slugify(title), imgs: [], dead: false };
+    })
+    .filter(p => p.title);
+}
+
+/* ---------- Images: found by number, measured once loaded ---------- */
+const EXTS = ['jpg', 'png', 'jpeg'];
+
+// Look for image i (0 = 01.jpg) of a project, trying each file type in turn
+function probe(p, i){
+  if (p.imgs[i]) return p.imgs[i];
+  const rec = { ok: undefined, src: '', w: 4, h: 3 };
+  p.imgs[i] = rec;
+  const tryExt = e => {
+    if (e >= EXTS.length){ rec.ok = false; imageSettled(p, i); return; }
+    const src = `images/${p.slug}/${pad2(i + 1)}.${EXTS[e]}`;
+    const im = new Image();
+    im.onload = () => { rec.ok = true; rec.src = src; rec.w = im.naturalWidth; rec.h = im.naturalHeight; imageSettled(p, i); };
+    im.onerror = () => tryExt(e + 1);
+    im.src = src;
+  };
+  tryExt(0);
+  return rec;
+}
+
+function imageSettled(p, i){
+  if (i === 0 && p.imgs[0].ok === false){
+    // no first image: leave the project out rather than show an empty frame
+    p.dead = true;
+    console.warn(`No images found for "${p.title}". Expected images/${p.slug}/01.jpg`);
+    const n = nodes.find(n => PROJECTS[n.i] === p);
+    if (n){
+      nodes = nodes.filter(x => x !== n);
+      nodeGrid.delete(n.ci + ',' + n.ri);
+      n.el.style.display = 'none';
+      updateStatus();
+    }
+    return;
+  }
+  const n = nodes.find(n => PROJECTS[n.i] === p);
+  if (n && n.k === i) applyImage(n);
+}
+
+// The image to show on the next visit: the next number, or back to 01 after the last
+function nextIndex(p, k){
+  const r = p.imgs[k + 1] || probe(p, k + 1);
+  return r.ok === false ? 0 : k + 1;
+}
+
+/* ---------- Cards (DOM) ---------- */
+let cards = [];
+function buildCards(){
+  cards = PROJECTS.map((p, i) => {
+    const a = document.createElement('a');
+    a.className = 'card off';
+    a.href = p.href || '#';
+    a.target = '_top';
+    a.setAttribute('aria-label', p.tag ? `${p.title}, ${p.tag}` : p.title);
+    const clip = document.createElement('span'); clip.className = 'clip';
+    const img = document.createElement('img'); img.alt = ''; img.decoding = 'async';
+    clip.appendChild(img); a.appendChild(clip);
+    for (const c of ['tl', 'tr', 'bl', 'bb']){ const s = document.createElement('span'); s.className = 'c ' + c; a.appendChild(s); }
+    const cap = document.createElement('span'); cap.className = 'cap';
+    if (p.year){ const y = document.createElement('span'); y.className = 'idx'; y.textContent = `[${p.year}]`; cap.appendChild(y); }
+    cap.appendChild(document.createTextNode(p.title));
+    if (p.tag){ const g = document.createElement('span'); g.className = 'tag'; g.textContent = p.tag; cap.appendChild(g); }
+    a.appendChild(cap);
+    a.addEventListener('click', e => { if (a.getAttribute('href') === '#') e.preventDefault(); });
+    a.addEventListener('focus', () => { forced = nodes.find(n => n.i === i) || null; });
+    a.addEventListener('blur', () => { if (forced && forced.i === i) forced = null; });
+    a._img = img;
+    cardsEl.appendChild(a);
+    return a;
+  });
+}
+
+async function loadProjects(){
+  try {
+    const res = await fetch('projects.txt', { cache: 'no-cache' });
+    if (!res.ok) throw new Error(res.status);
+    PROJECTS = parseProjects(await res.text());
+  } catch (e) {
+    statusEl.textContent = 'projects.txt could not be loaded';
+    return;
+  }
+  buildCards();
+  PROJECTS.forEach(p => probe(p, 0));
+  if (W > 0) placeNodes();
+}
+const found = new Set();
+
+function cardDims(p){  // p is one image {w, h}
+  const a = p.w / p.h;
+  if (a >= 1) { const w = S * 1.22; return { w: Math.round(w), h: Math.round(w / a) }; }
+  const h = S * 1.12; return { w: Math.round(h * a), h: Math.round(h) };
+}
+
+function readColors(){
+  const cs = getComputedStyle(document.documentElement);
+  ink = cs.getPropertyValue('--ink').trim() || ink;
+  muted = cs.getPropertyValue('--muted').trim() || muted;
+  const r = 1.15, s = Math.ceil((r * 2 + 2) * dpr);
+  dotSprite = document.createElement('canvas');
+  dotSprite.width = dotSprite.height = s;
+  const g = dotSprite.getContext('2d');
+  g.fillStyle = ink; g.beginPath(); g.arc(s/2, s/2, r * dpr, 0, Math.PI*2); g.fill();
+}
+
+/* ---------- Layout ---------- */
+function layout(){
+  const r = field.getBoundingClientRect();
+  W = r.width; H = r.height;
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  sp = W < 560 ? 22 : 26;
+  cols = Math.max(1, Math.floor((W - sp) / sp) + 1);
+  rows = Math.max(1, Math.floor((H - sp) / sp) + 1);
+  ox = (W - (cols - 1) * sp) / 2;
+  oy = (H - (rows - 1) * sp) / 2;
+  S = Math.max(96, Math.min(210, Math.min(W, H) * 0.24));
+  readColors();
+  placeNodes();
+}
+
+function placeNodes(){
+  const old = new Map(nodes.map(n => [n.i, { p: n.p, k: n.k }]));
+  let best = [];
+  let minD = S * 1.35;
+  for (let attempt = 0; attempt < 14; attempt++){
+    const rng = mulberry32(SEED + attempt * 101);
+    const placed = [];
+    const d = { w: Math.round(S * 1.22), h: Math.round(S * 1.12) };  // the largest any card can be
+    for (let i = 0; i < PROJECTS.length; i++){
+      if (PROJECTS[i].dead) continue;
+      for (let k = 0; k < 700; k++){
+        const ci = Math.floor(rng() * cols), ri = Math.floor(rng() * rows);
+        const x = ox + ci * sp, y = oy + ri * sp;
+        if (x - d.w/2 < 12 || x + d.w/2 > W - 12) continue;
+        if (y - d.h/2 < 12 || y + d.h/2 > H - 12) continue;
+        const roomBelow = y + d.h/2 + 52 < H - 8, roomAbove = y - d.h/2 - 52 > 8;
+        if (!roomBelow && !roomAbove) continue;
+        if (x + d.w/2 > W - 150 && y + d.h/2 > H - 40) continue; // keep the status line clear
+        if (placed.some(n => Math.hypot(n.x - x, n.y - y) < minD)) continue;
+        placed.push({ i, ci, ri, x, y, p: old.get(i)?.p || 0, k: old.get(i)?.k || 0, wasOpen: false });
+        break;
+      }
+    }
+    if (placed.length > best.length) best = placed;
+    if (placed.length === PROJECTS.filter(p => !p.dead).length) break;
+    minD *= 0.9;
+    if (attempt > 6) S = Math.max(84, S * 0.93);
+  }
+  nodes = best;
+  nodeGrid = new Map(nodes.map(n => [n.ci + ',' + n.ri, n]));
+  cards.forEach((el, i) => {
+    const n = nodes.find(n => n.i === i);
+    el.style.display = n ? '' : 'none';
+    if (!n) return;
+    el.style.left = n.x + 'px'; el.style.top = n.y + 'px';
+    n.el = el; n.last = -1;
+    applyImage(n);
+  });
+  updateStatus();
+}
+
+// Start fetching the image this project will show on its next visit
+function preloadNext(n){
+  const p = PROJECTS[n.i];
+  probe(p, n.k + 1);
+}
+
+// Show image k of a project and size the card to it
+function applyImage(n){
+  const p = PROJECTS[n.i];
+  let rec = p.imgs[n.k] || probe(p, n.k);
+  if (rec.ok === false){ n.k = 0; rec = p.imgs[0]; }
+  const d = cardDims(rec);
+  n.w = d.w; n.h = d.h;
+  n.el.style.width = d.w + 'px'; n.el.style.height = d.h + 'px';
+  n.el.classList.toggle('above', n.y + d.h/2 + 52 > H - 8);
+  if (rec.ok && n.el._img.getAttribute('src') !== rec.src) n.el._img.src = rec.src;
+}
+
+/* ---------- Interaction state ---------- */
+const R1 = coarse ? 120 : 165, R0 = 52;
+const t0 = performance.now();
+const pointer = { x: 0, y: 0, active: false };
+const focus = { x: 0, y: 0, on: false };
+const brk = { x: 0, y: 0, a: 0 };
+let forced = null;
+
+function local(e){ const r = field.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+field.addEventListener('pointermove', e => {
+  if (e.pointerType === 'touch') return;
+  const p = local(e); pointer.x = p.x; pointer.y = p.y;
+  if (!pointer.active){ pointer.active = true; if (!focus.on){ focus.x = p.x; focus.y = p.y; } }
+});
+field.addEventListener('pointerleave', e => {
+  if (e.pointerType === 'touch') return;
+  pointer.active = false;
+});
+field.addEventListener('pointerdown', e => {
+  if (e.pointerType !== 'touch') return;
+  const p = local(e); pointer.x = p.x; pointer.y = p.y; pointer.active = true;
+  focus.x = p.x; focus.y = p.y;
+});
+
+function updateStatus(){
+  const total = nodes.length;
+  if (!total){ statusEl.textContent = ''; return; }
+  statusEl.textContent = found.size === 0 ? `${total} project${total === 1 ? ' is' : 's are'} hidden in the grid`
+    : found.size === total ? `Found all ${total}` : `Found ${found.size} of ${total}`;
+}
+
+/* ---------- Frame ---------- */
+function frame(now){
+  // where the field is "looking"; with no pointer it simply rests as a grid
+  let tx, ty;
+  if (forced){ tx = forced.x; ty = forced.y; focus.on = true; }
+  else if (pointer.active){ tx = pointer.x; ty = pointer.y; focus.on = true; }
+  else { focus.on = false; }
+
+  if (focus.on){
+    const k = reduce ? 1 : forced ? 0.2 : 0.5;
+    focus.x += (tx - focus.x) * k; focus.y += (ty - focus.y) * k;
+  }
+
+  // which node is open
+  let nearest = null, nd = Infinity;
+  if (focus.on){
+    for (const n of nodes){ const d = Math.hypot(n.x - focus.x, n.y - focus.y); if (d < nd){ nd = d; nearest = n; } }
+  }
+  let maxP = 0;
+  for (const n of nodes){
+    let tp = 0;
+    if (forced) tp = n === forced ? 1 : 0;
+    else if (n === nearest && PROJECTS[n.i].imgs[n.k] && PROJECTS[n.i].imgs[n.k].ok){
+      const inside = Math.abs(focus.x - n.x) < n.w/2 + 14 && Math.abs(focus.y - n.y) < n.h/2 + 14 && n.p > 0.5;
+      const t = clamp01((R1 - nd) / (R1 - R0));
+      tp = inside ? 1 : t * t * (3 - 2 * t);
+    }
+    n.p = reduce ? (tp > 0.5 ? 1 : 0) : n.p + (tp - n.p) * (tp > n.p ? 0.1 : 0.13);
+    if (n.p < 0.002) n.p = 0;
+    if (n.p > 0.995) n.p = 1;
+    maxP = Math.max(maxP, n.p);
+    if (n.p !== n.last){
+      const el = n.el;
+      el.style.setProperty('--ph', easeOut(clamp01(n.p / 0.42)).toFixed(4));
+      el.style.setProperty('--pv', easeInOut(clamp01((n.p - 0.34) / 0.66)).toFixed(4));
+      el.style.setProperty('--pc', clamp01((n.p - 0.78) / 0.22).toFixed(4));
+      el.classList.toggle('off', n.p === 0);
+      el.classList.toggle('live', n.p > 0.6);
+      n.last = n.p;
+    }
+    if (n.p > 0.6 && !n.wasOpen){ n.wasOpen = true; preloadNext(n); }
+    // once it has fully folded away, queue the next image for the next visit
+    if (n.p === 0 && n.wasOpen){ n.wasOpen = false; n.k = nextIndex(PROJECTS[n.i], n.k); applyImage(n); }
+    if (n.p > 0.92 && !found.has(n.i)){ found.add(n.i); updateStatus(); }
+  }
+
+  draw(now, maxP);
+  requestAnimationFrame(frame);
+}
+
+
+function draw(now, maxP){
+  ctx.clearRect(0, 0, W, H);
+  const el = now - t0;
+  const R = 150, fx = focus.x, fy = focus.y, on = focus.on;
+  const ss = dotSprite.width / dpr, half = ss / 2;
+  const base = 0.24;
+
+  for (let c = 0; c < cols; c++){
+    const ia = reduce ? 1 : clamp01((el - 100 - c * 13) / 420);
+    if (ia <= 0) continue;
+    const bx = ox + c * sp;
+    for (let r = 0; r < rows; r++){
+      let x = bx, y = oy + r * sp, a = base;
+      if (on){
+        const dx = x - fx, dy = y - fy, d = Math.sqrt(dx*dx + dy*dy);
+        if (d < R){
+          const k = 1 - d / R;
+          if (!reduce && d > 0.01){ const push = k * k * 9; x += dx / d * push; y += dy / d * push; }
+          a += k * 0.42;
+        }
+      }
+      const n = nodeGrid.get(c + ',' + r);
+      if (n){
+        const s = 3.2;
+        ctx.globalAlpha = Math.min(1, a + 0.4) * ia * (1 - clamp01(n.p * 4));
+        ctx.fillStyle = ink;
+        ctx.fillRect(x - s/2, y - s/2, s, s);
+        continue;
+      }
+      ctx.globalAlpha = a * ia;
+      ctx.drawImage(dotSprite, x - half, y - half, ss, ss);
+    }
+  }
+
+  // registration brackets snapping to the nearest cell
+  const targetA = on && !forced ? (1 - clamp01(maxP * 3)) : 0;
+  brk.a += (targetA - brk.a) * 0.2;
+  if (brk.a > 0.01){
+    const ci = Math.max(0, Math.min(cols - 1, Math.round((fx - ox) / sp)));
+    const ri = Math.max(0, Math.min(rows - 1, Math.round((fy - oy) / sp)));
+    const bx = ox + ci * sp, by = oy + ri * sp;
+    const k = reduce ? 1 : 0.35;
+    if (Math.abs(brk.x - bx) > W) { brk.x = bx; brk.y = by; }
+    brk.x += (bx - brk.x) * k; brk.y += (by - brk.y) * k;
+    const h = sp * 0.5, L = 5;
+    ctx.globalAlpha = brk.a * 0.9;
+    ctx.strokeStyle = ink; ctx.lineWidth = 1;
+    const X = Math.round(brk.x) + 0.5, Y = Math.round(brk.y) + 0.5;
+    ctx.beginPath();
+    ctx.moveTo(X - h, Y - h + L); ctx.lineTo(X - h, Y - h); ctx.lineTo(X - h + L, Y - h);
+    ctx.moveTo(X + h - L, Y - h); ctx.lineTo(X + h, Y - h); ctx.lineTo(X + h, Y - h + L);
+    ctx.moveTo(X - h, Y + h - L); ctx.lineTo(X - h, Y + h); ctx.lineTo(X - h + L, Y + h);
+    ctx.moveTo(X + h - L, Y + h); ctx.lineTo(X + h, Y + h); ctx.lineTo(X + h, Y + h - L);
+    ctx.stroke();
+    ctx.globalAlpha = brk.a;
+    ctx.fillStyle = muted;
+    ctx.font = '10.5px ' + FONT;
+    const label = `[${pad2(ci)}, ${pad2(ri)}]`;
+    const right = X + h + 70 > W;
+    ctx.textAlign = right ? 'right' : 'left';
+    ctx.fillText(label, right ? X - h - 4 : X + h + 4, Y + h + 11);
+    ctx.textAlign = 'left';
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ---------- Boot ---------- */
+new ResizeObserver(() => layout()).observe(field);
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', readColors);
+(document.fonts ? document.fonts.ready : Promise.resolve()).then(() => {
+  layout();
+  requestAnimationFrame(frame);
+});
+loadProjects();
+</script>
+</body>
+</html>

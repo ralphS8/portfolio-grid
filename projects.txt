@@ -1,0 +1,25 @@
+# Homepage projects, one per line:
+#
+#   Title | Year | Grey line | Link
+#
+# Images for each project go in images/ in a folder named after the title,
+# in lowercase with hyphens instead of spaces. For example:
+#
+#   Luz Latina     ->  images/luz-latina/01.jpg, 02.jpg, 03.jpg ...
+#   8-Bit Holiday  ->  images/8-bit-holiday/01.jpg, 02.jpg ...
+#
+# Any number of images works; 01 is the one people see first.
+# To hide a project without deleting it, put # at the start of its line.
+# The order of the lines doesn't matter: positions are random on every visit.
+
+Luz Latina | 2025 | Film festival identity | https://ralphsagrott.com/luz-latina-desktop-1
+The Mindset Lounge | 2026 | Experiential | https://ralphsagrott.com/the-mindset-lounge-desktop
+Find Your Flow | 2025 | Campaign | https://ralphsagrott.com/find-your-flow-desktop
+Jacksonville Jaguars | 2025 | Gameday poster | https://ralphsagrott.com/jacksonville-jaguars-desktop
+Missing Media | 2024 | Publication | https://ralphsagrott.com/missing-media-desktop
+You Are Here | 2025 | Identity refresh | https://ralphsagrott.com/you-are-here-desktop
+Casa Quetzal | 2025 | Spatial identity | https://ralphsagrott.com/casa-quetzal-desktop
+Every Which Way | 2025 | Degree show identity | https://ralphsagrott.com/every-which-way-desktop
+Represent | 2025 | Motion deck | https://ralphsagrott.com/represent-desktop
+8-Bit Holiday | 2025 | Holiday campaign | https://ralphsagrott.com/8-bit-holiday-desktop
+Mindset Upfronts | 2026 | Event identity | https://ralphsagrott.com/mindset-upfronts-desktop
