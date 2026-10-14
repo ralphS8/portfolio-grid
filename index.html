@@ -179,6 +179,11 @@ function probe(p, i){
 }
 
 function imageSettled(p, i){
+  if (i === 0 && p.imgs[0].ok === false && !p.retried){
+    p.retried = true;                      // a blip, perhaps: try the first image once more
+    setTimeout(() => { delete p.imgs[0]; probe(p, 0); }, 1500);
+    return;
+  }
   if (i === 0 && p.imgs[0].ok === false){
     // no first image: leave the project out rather than show an empty frame
     p.dead = true;
@@ -229,19 +234,56 @@ function buildCards(){
   });
 }
 
-async function loadProjects(){
-  try {
-    const res = await fetch('projects.txt', { cache: 'no-cache' });
-    if (!res.ok) throw new Error(res.status);
-    PROJECTS = parseProjects(await res.text());
-  } catch (e) {
-    statusEl.textContent = 'projects.txt could not be loaded';
-    return;
-  }
+/* projects.txt can occasionally fail to load (for example while Cargo is switching pages).
+   So: retry a few times, keep a copy of the last good list in this browser to fall back on,
+   and try again whenever the page comes back into view. Visitors never see an error. */
+const CACHE_KEY = 'portfolio-grid:projects';
+let projectsText = null, projectsFresh = false, projectsLoading = false;
+const readCache = () => { try { return localStorage.getItem(CACHE_KEY); } catch (e) { return null; } };
+const writeCache = txt => { try { localStorage.setItem(CACHE_KEY, txt); } catch (e) {} };
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+async function fetchProjects(){
+  const res = await fetch('projects.txt?t=' + Date.now(), { cache: 'no-store' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const txt = await res.text();
+  if (!parseProjects(txt).length) throw new Error('no projects in the file');
+  return txt;
+}
+
+function useProjects(txt){
+  if (txt === projectsText) return;          // already showing exactly this list
+  projectsText = txt;
+  cardsEl.textContent = '';
+  nodes = []; nodeGrid = new Map(); found.clear(); forced = null;
+  PROJECTS = parseProjects(txt);
   buildCards();
   PROJECTS.forEach(p => probe(p, 0));
-  if (W > 0) placeNodes();
+  if (W > 0) placeNodes(); else updateStatus();
 }
+
+async function loadProjects(){
+  if (projectsFresh || projectsLoading) return;
+  projectsLoading = true;
+  for (const delay of [0, 400, 1200, 2500, 5000]){
+    if (delay) await wait(delay);
+    try {
+      const txt = await fetchProjects();
+      writeCache(txt); useProjects(txt);
+      projectsFresh = true; projectsLoading = false;
+      return;
+    } catch (e) {
+      console.warn('projects.txt did not load, retrying:', e.message || e);
+      if (!projectsText){ const saved = readCache(); if (saved) useProjects(saved); }
+    }
+  }
+  projectsLoading = false;
+  console.warn('projects.txt still not loading; will try again when the page is next viewed.');
+}
+addEventListener('pageshow', loadProjects);
+addEventListener('focus', loadProjects);
+addEventListener('online', loadProjects);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') loadProjects(); });
 const found = new Set();
 
 function cardDims(p){  // p is one image {w, h}
